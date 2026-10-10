@@ -1,6 +1,6 @@
 # Color Palette & Brand Style
 
-Single source of truth for colors. Light engineering whiteboard by default, for solo.io, Kubernetes and agentic infrastructure. The values are Excalidraw's own palette, so the diagram matches what a person picks in the editor. A dark variant is at the end. Use it only when asked.
+Single source of truth for colors. Light engineering whiteboard by default, for Kubernetes and agentic infrastructure. The values are Excalidraw's own palette, so the diagram matches what a person picks in the editor. A dark variant is at the end. Use it only when asked.
 
 ## Canvas
 

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>__TITLE__ · Excalidraw</title>
+  <link rel="stylesheet" href="https://esm.sh/@excalidraw/excalidraw@0.18.1/dist/prod/index.css" />
+  <style>
+    html, body, #app { height: 100%; margin: 0; }
+    .save-button {
+      font: 500 13px system-ui, sans-serif; padding: 6px 12px; border-radius: 8px;
+      border: 1px solid #c9c9d6; background: #ffffff; color: #1b1b1f; cursor: pointer;
+    }
+    .save-button[data-state="dirty"] { border-color: #6965db; color: #6965db; }
+    .save-button[data-state="error"] { border-color: #e03131; color: #e03131; }
+  </style>
+  <!-- Fonts and other runtime assets load from the same pinned build as the code. -->
+  <script>window.EXCALIDRAW_ASSET_PATH = "https://esm.sh/@excalidraw/excalidraw@0.18.1/dist/prod/";</script>
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.1.0",
+        "react/jsx-runtime": "https://esm.sh/react@19.1.0/jsx-runtime",
+        "react-dom": "https://esm.sh/react-dom@19.1.0",
+        "react-dom/client": "https://esm.sh/react-dom@19.1.0/client",
+        "@excalidraw/excalidraw": "https://esm.sh/@excalidraw/excalidraw@0.18.1?external=react,react-dom"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import React, { useState } from "react";
+    import { createRoot } from "react-dom/client";
+    import { Excalidraw, serializeAsJSON } from "@excalidraw/excalidraw";
+
+    const scene = await (await fetch("/scene.json")).json();
+    let api = null;
+
+    // The scene's version is the sum of element versions: selection and scrolling fire
+    // onChange too, and should not mark the file as unsaved.
+    const versionOf = (els) => els.reduce((n, e) => n + (e.version || 0), 0);
+    let savedVersion = null;
+    let setState = () => {};
+
+    async function save() {
+      if (!api) return;
+      const els = api.getSceneElements();
+      const body = serializeAsJSON(els, api.getAppState(), api.getFiles(), "local");
+      const res = await fetch("/save", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+      if (res.ok) { savedVersion = versionOf(els); setState("saved"); }
+      else { setState("error"); }
+    }
+
+    window.addEventListener("keydown", (ev) => {
+      if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "s") { ev.preventDefault(); save(); }
+    }, true);
+    window.addEventListener("beforeunload", (ev) => {
+      if (api && versionOf(api.getSceneElements()) !== savedVersion) { ev.preventDefault(); ev.returnValue = ""; }
+    });
+
+    function SaveButton() {
+      const [state, set] = useState("saved");
+      setState = set;
+      const label = { saved: "Saved to file", dirty: "Save to file (⌘S)", error: "Save failed, retry" }[state];
+      return React.createElement("button", { className: "save-button", "data-state": state, onClick: save }, label);
+    }
+
+    // The editor theme stays light: Excalidraw's dark theme inverts the canvas colours,
+    // which would repaint a diagram authored for a dark background.
+    const appState = { ...scene.appState, theme: "light" };
+
+    createRoot(document.getElementById("app")).render(
+      React.createElement(Excalidraw, {
+        initialData: { elements: scene.elements, appState, files: scene.files || {}, scrollToContent: true },
+        excalidrawAPI: (a) => {
+          api = a;
+          // scrollToContent in initialData centres at 100%, which leaves a wide diagram
+          // mostly off-screen; fit it to the window once the canvas has a size.
+          setTimeout(() => a.scrollToContent(undefined, { fitToViewport: true, viewportZoomFactor: 0.92 }), 50);
+        },
+        onChange: (els) => {
+          const v = versionOf(els);
+          if (savedVersion === null) savedVersion = v;
+          setState(v === savedVersion ? "saved" : "dirty");
+        },
+        renderTopRightUI: () => React.createElement(SaveButton),
+      })
+    );
+  </script>
+</body>
+</html>

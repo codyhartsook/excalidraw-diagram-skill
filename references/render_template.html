@@ -4,16 +4,31 @@
   <meta charset="utf-8" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #ffffff; overflow: hidden; }
-    #root { display: inline-block; }
+    body { overflow: hidden; }
+    #stage { display: inline-block; position: relative; padding: 64px; }
+    /* Ambient glow, rendered behind the diagram. Dark backgrounds only. */
+    #stage.glow::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background:
+        radial-gradient(980px 680px at 4% 0%, rgba(139, 92, 246, 0.26), transparent 62%),
+        radial-gradient(1100px 760px at 98% 100%, rgba(45, 118, 214, 0.20), transparent 60%);
+    }
+    #root { position: relative; }
     #root svg { display: block; }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="stage"><div id="root"></div></div>
 
   <script type="module">
-    import { exportToSvg } from "https://esm.sh/@excalidraw/excalidraw?bundle";
+    import { exportToSvg } from "https://cdn.jsdelivr.net/npm/@excalidraw/excalidraw@0.18.1/+esm";
+
+    const luminance = (hex) => {
+      const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+      if (!m) return 1;
+      const n = parseInt(m[1], 16);
+      return (0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+    };
 
     window.renderDiagram = async function(jsonData) {
       try {
@@ -22,23 +37,26 @@
         const appState = data.appState || {};
         const files = data.files || {};
 
-        // Force white background in appState
-        appState.viewBackgroundColor = appState.viewBackgroundColor || "#ffffff";
-        appState.exportWithDarkMode = false;
+        const bg = appState.viewBackgroundColor || "#ffffff";
+        const dark = luminance(bg) < 0.4;
 
+        const stage = document.getElementById("stage");
+        stage.style.background = bg;
+        stage.classList.toggle("glow", dark && appState.ambientGlow !== false);
+        document.body.style.background = bg;
+
+        // The stage paints the background so the glow shows through the SVG.
         const svg = await exportToSvg({
-          elements: elements,
-          appState: {
-            ...appState,
-            exportBackground: true,
-          },
-          files: files,
+          elements,
+          appState: { ...appState, exportBackground: false, exportWithDarkMode: false },
+          files,
         });
 
-        // Clear any previous render
         const root = document.getElementById("root");
         root.innerHTML = "";
         root.appendChild(svg);
+
+        await document.fonts.ready;
 
         window.__renderComplete = true;
         window.__renderError = null;
@@ -50,7 +68,6 @@
       }
     };
 
-    // Signal that the module is loaded and ready
     window.__moduleReady = true;
   </script>
 </body>

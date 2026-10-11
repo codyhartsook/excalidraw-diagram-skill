@@ -12,6 +12,26 @@
     }
     .save-button[data-state="dirty"] { border-color: #6965db; color: #6965db; }
     .save-button[data-state="error"] { border-color: #e03131; color: #e03131; }
+    .save-button:hover { background: #f1f0ff; }
+    .save-button:active { background: #e5e3ff; }
+    .code-hint {
+      /* In the footer row, right of zoom and undo, so it never covers the properties panel. */
+      position: fixed; left: 246px; bottom: 16px; height: 36px; box-sizing: border-box; z-index: 10;
+      pointer-events: none; display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 316px);
+      font: 13px system-ui, sans-serif; color: #1b1b1f; background: #ffffff;
+      border: 1px solid #c9c9d6; border-radius: 8px; padding: 6px 10px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+    .code-hint[hidden] { display: none; }
+    .code-hint kbd {
+      font: 600 12px system-ui, sans-serif; border: 1px solid #c9c9d6; border-bottom-width: 2px;
+      border-radius: 4px; padding: 0 5px; background: #f8f9fa;
+    }
+    .code-hint-sep { width: 1px; align-self: stretch; margin: 2px 2px; background: #c9c9d6; }
+    .code-hint code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+    /* Modifier held over a linked box: the box is now a link. */
+    .code-hint[data-armed] { border-color: #5b57d1; color: #3e3a9e; background: #f1f0ff; }
+    body.code-link-armed .excalidraw canvas { cursor: pointer !important; }
   </style>
   <!-- Fonts and other runtime assets load from the same pinned build as the code. -->
   <script>window.EXCALIDRAW_ASSET_PATH = "https://esm.sh/@excalidraw/excalidraw@0.18.1/dist/prod/";</script>
@@ -29,13 +49,26 @@
 </head>
 <body>
   <div id="app"></div>
+  <div class="code-hint" role="status" hidden></div>
   <script type="module">
     import React, { useState } from "react";
     import { createRoot } from "react-dom/client";
     import { Excalidraw, serializeAsJSON } from "@excalidraw/excalidraw";
 
     const scene = await (await fetch("/scene.json")).json();
+    const codeLinks = await (await fetch("/links.json")).json();
     let api = null;
+
+    // Excalidraw draws an icon over every element with a link. Park the links in customData
+    // while editing, so the box itself is the link, and put them back on save.
+    const PARKED = "__editorLink";
+    const parkLinks = (els) => els.map((e) =>
+      e.link ? { ...e, link: null, customData: { ...e.customData, [PARKED]: e.link } } : e);
+    const restoreLinks = (els) => els.map((e) => {
+      if (!e.customData || !(PARKED in e.customData)) return e;
+      const { [PARKED]: parked, ...rest } = e.customData;
+      return { ...e, link: e.link || parked, customData: Object.keys(rest).length ? rest : undefined };
+    });
 
     // The scene's version is the sum of element versions: selection and scrolling fire
     // onChange too, and should not mark the file as unsaved.
@@ -46,7 +79,7 @@
     async function save() {
       if (!api) return;
       const els = api.getSceneElements();
-      const body = serializeAsJSON(els, api.getAppState(), api.getFiles(), "local");
+      const body = serializeAsJSON(restoreLinks(els), api.getAppState(), api.getFiles(), "local");
       const res = await fetch("/save", { method: "POST", headers: { "Content-Type": "application/json" }, body });
       if (res.ok) { savedVersion = versionOf(els); setState("saved"); }
       else { setState("error"); }
@@ -55,6 +88,71 @@
     window.addEventListener("keydown", (ev) => {
       if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "s") { ev.preventDefault(); save(); }
     }, true);
+    // Cmd+click on a code-linked box opens its code; a plain click still selects it. Ctrl+click is a
+    // right-click on macOS, so only Cmd counts there. Other platforms have no Cmd and use Ctrl.
+    const hint = document.querySelector(".code-hint");
+    const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+    const modKey = isMac ? "\u2318" : "Ctrl";
+    const modName = isMac ? "Meta" : "Control";
+    const modHeld = (ev) => (isMac ? ev.metaKey : ev.ctrlKey);
+    let hovered = null;
+
+    function linkedElementAt(clientX, clientY) {
+      const { scrollX, scrollY, zoom, offsetLeft, offsetTop } = api.getAppState();
+      const x = (clientX - offsetLeft) / zoom.value - scrollX;
+      const y = (clientY - offsetTop) / zoom.value - scrollY;
+      const els = api.getSceneElements();
+      for (let i = els.length - 1; i >= 0; i--) {
+        const e = els[i];
+        if (e.type === "arrow" || e.type === "line") continue;
+        if (x < e.x || x > e.x + e.width || y < e.y || y > e.y + e.height) continue;
+        const id = e.type === "text" && e.containerId ? e.containerId : e.id;
+        if (codeLinks[id]) return id;
+        if (e.backgroundColor !== "transparent" || e.type === "text") return null; // covered by something unlinked
+      }
+      return null;
+    }
+
+    function showHint(ev) {
+      const armed = Boolean(hovered && modHeld(ev));
+      document.body.classList.toggle("code-link-armed", armed);
+      hint.hidden = !hovered;
+      if (!hovered) return;
+      hint.toggleAttribute("data-armed", armed);
+      const { ref, target, diff } = codeLinks[hovered];
+      hint.innerHTML = `<kbd>${modKey}</kbd><span>click opens</span><code></code><span>${target === "GitHub" ? "on" : "in"} ${target}</span>`
+        + (diff ? `<span class="code-hint-sep"></span><kbd>\u21e7${modKey}</kbd><span>click shows its changes in VS Code</span>` : "");
+      hint.querySelector("code").textContent = ref;
+    }
+
+    // VS Code targets go through the server, which opens them in the window that has the repo, so the
+    // language tooling sees the package. The diff is VS Code's own: whole file, branch changes highlighted.
+    async function openInVSCode(id, diff) {
+      const res = await fetch("/open-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, diff }) });
+      if (!res.ok) {
+        hint.hidden = false;
+        hint.textContent = `Couldn't open VS Code: ${await res.text()}`;
+      }
+    }
+
+    window.addEventListener("pointermove", (ev) => {
+      hovered = api && ev.target instanceof HTMLCanvasElement ? linkedElementAt(ev.clientX, ev.clientY) : null;
+      showHint(ev);
+    }, true);
+    window.addEventListener("keydown", (ev) => { if (ev.key === modName) showHint(ev); }, true);
+    window.addEventListener("keyup", (ev) => { if (ev.key === modName) showHint(ev); }, true);
+    window.addEventListener("pointerdown", (ev) => {
+      if (!api || ev.button !== 0 || !modHeld(ev) || !(ev.target instanceof HTMLCanvasElement)) return;
+      const id = linkedElementAt(ev.clientX, ev.clientY);
+      if (!id) return;
+      ev.preventDefault();
+      ev.stopPropagation(); // Excalidraw would treat this as a deep-select click
+      const { url, diff } = codeLinks[id];
+      if (ev.shiftKey && diff) openInVSCode(id, true);
+      else if (url.startsWith("vscode:")) openInVSCode(id, false);
+      else window.open(url, "_blank", "noopener");
+    }, true);
+
     window.addEventListener("beforeunload", (ev) => {
       if (api && versionOf(api.getSceneElements()) !== savedVersion) { ev.preventDefault(); ev.returnValue = ""; }
     });
@@ -67,12 +165,12 @@
     }
 
     // The editor theme stays light: Excalidraw's dark theme inverts the canvas colours,
-    // which would repaint a diagram authored for a dark background.
+    // which would repaint the diagram.
     const appState = { ...scene.appState, theme: "light" };
 
     createRoot(document.getElementById("app")).render(
       React.createElement(Excalidraw, {
-        initialData: { elements: scene.elements, appState, files: scene.files || {}, scrollToContent: true },
+        initialData: { elements: parkLinks(scene.elements), appState, files: scene.files || {}, scrollToContent: true },
         excalidrawAPI: (a) => {
           api = a;
           // scrollToContent in initialData centres at 100%, which leaves a wide diagram

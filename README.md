@@ -9,7 +9,7 @@ Works with any agent that reads `~/.claude/skills/`. SKILL.md calls its scripts 
 - **Argues, not displays.** Each concept gets the pattern that mirrors its behaviour: fan-out for one-to-many, timelines for sequences, convergence for aggregation. No card grids.
 - **Evidence artifacts.** Technical diagrams carry real code snippets and real payloads, not boxes labelled "API Response".
 - **Sees its own output.** A Playwright render pipeline turns the file into a PNG so the agent can catch overlaps, clipping and bad arrow routing, then fix them in a loop.
-- **Engineering whiteboard by default.** White canvas, hand-drawn strokes, black outlines, light fills. Every color has one meaning and appears in an on-canvas legend. A dark variant with an ambient glow is available on request. All of it in one file.
+- **Technical design-doc style.** Light gray canvas, white boxes, black outlines, hand-drawn strokes. Every color has one meaning and appears in an on-canvas legend.
 
 ## Install
 
@@ -48,9 +48,13 @@ uv run --script references/open_excalidraw.py diagram.excalidraw
 
 Opens an editable Excalidraw canvas served from 127.0.0.1. "Save to file" (or Cmd/Ctrl+S) writes your edits back to the `.excalidraw` file. The editor loads from esm.sh, and the diagram is never uploaded.
 
+## Link boxes to code
+
+A box can carry a code ref such as `"code": "billing:src/invoice.ts#generateInvoice"`. `diagram.repos.toml` maps each repo id to GitHub, and `~/.config/diagram-links/local.toml` maps it to a local checkout. Expand writes GitHub links, and `diagram.py check` fails when a file or symbol is gone. In `open_excalidraw.py`, Cmd+click (Ctrl+click off macOS) on a linked box opens the code in VS Code, or on GitHub when the repo isn't checked out. `diagram.py links file -o copy` writes a copy with `vscode://` links for other editors.
+
 ## Customize
 
-Edit `references/color-palette.md`. It holds every color, the canvas, and the text hierarchy. The ambient glow lives in `references/render_template.html` and switches off per file with `appState.ambientGlow: false`.
+Edit `references/color-palette.md`. It holds every color, the canvas, and the text hierarchy.
 
 ## Files
 
@@ -59,10 +63,10 @@ SKILL.md                     Design method and workflow
 references/
   color-palette.md           Colors and canvas - edit this
   element-templates.md       Skeleton per element type
-  diagram.py                 Expand skeletons, summarize, check bindings
+  diagram.py                 Expand skeletons, summarize, check bindings and code refs, local links
   json-schema.md             Excalidraw format
   render_excalidraw.py       Validate and render to PNG
-  render_template.html       Browser-side render, background, glow
+  render_template.html       Browser-side render
   open_excalidraw.py         Serve an editable canvas on 127.0.0.1
   editor_template.html       Browser-side editor
 ```

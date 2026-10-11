@@ -9,7 +9,7 @@ Generate `.excalidraw` files that **argue visually**. A diagram isn't formatted 
 
 **Colors, fonts and background live in `references/color-palette.md`.** Read it before generating anything and use it as the only source of color. Everything else here is universal.
 
-**Setup:** see `README.md`.
+**Setup:** rendering needs a headless browser. Run this once: `uv run --script ~/.claude/skills/excalidraw-diagram/references/render_excalidraw.py --install`.
 
 ## Two tests
 
@@ -24,6 +24,8 @@ Generate `.excalidraw` files that **argue visually**. A diagram isn't formatted 
 
 > Bad: `Protocol` → `Frontend`
 > Good: `AG-UI streams RUN_STARTED, STATE_DELTA` → `createA2UIMessageRenderer()`
+
+When the diagram documents code you can read, link its boxes to that code. See "Linking boxes to code".
 
 Technical diagrams work at three zoom levels at once: a summary flow across the top or bottom, labeled section boundaries that group components, and evidence inside each section.
 
@@ -62,14 +64,14 @@ Default to free-floating text. A box earns its place only when it's a focal poin
 
 ## Step 4: style
 
-Engineering whiteboard: white canvas, hand-drawn strokes, black outlines, light fills. It should look like a sketch an engineer drew to explain a system, not a marketing graphic. No glow, no accent-coloured title words. Pull every color from the palette. Use the dark variant only when asked.
+Technical design doc: light gray canvas, white boxes, black outlines, hand-drawn strokes. It should look like a sketch an engineer drew to explain a system, not a marketing graphic. No accent-coloured title words. Pull every color from the palette.
 
 | Setting | Value |
 |---------|-------|
 | `roughness` | `1` on shapes, arrows and lines |
 | `opacity` | `100` - always. Hierarchy comes from color and scale |
 | `fontFamily` | `5` (Excalifont) for titles, section titles, box labels and short arrow labels. `6` (Nunito) for multi-line notes and list items. `3` for code |
-| `strokeWidth` | `1` hairlines and dividers, `2` shapes and arrows, `4` the one main flow line |
+| `strokeWidth` | `1` hairlines and dividers, `2` shapes and arrows, `4` the hops that carry what the diagram is about |
 | `roundness` | `{"type": 3}` on rectangles |
 
 Apply one font rule across the whole diagram. A list that mixes Excalifont and Nunito items reads as a mistake.
@@ -77,13 +79,12 @@ Apply one font rule across the whole diagram. A list that mixes Excalifont and N
 **Every color has one meaning, and the legend says what it is.** Decide the encodings before you draw:
 
 - **Arrow color = what flows over that hop**, for example the credential it carries. Line style can add one more meaning, such as dashed for an API call.
-- **Box fill = who owns or runs the component.**
-- **Box outline = status**, for example orange for "changes in this proposal".
+- **Box outline = status**, for example orange for "changes in this proposal". Boxes stay white, and a dashed purple outline marks a trust boundary.
 - **Text color = status**, for example red for a risk, green for something that holds, orange for an open question.
 
 Never reuse a color for a second meaning, not even in another section. The same hop must get the same color in every section. If "today" and "proposed" both draw caller to gateway, both use one color. Put every encoding in a legend on the canvas: arrows, boxes, line styles, text. If a color is not in the legend, remove it or add it to the legend.
 
-**Scale carries hierarchy:** hero 300×150, primary 180×90, secondary 120×60, marker 12×12. Font sizes: 36 title, 24 section, 16 body, 13 annotation.
+**Scale carries hierarchy:** hero 300×150, primary 180×90, secondary 120×60, marker 12×12. Font sizes: 36 title, 24 section, 16 labels and body, 13 notes and legend. The section the diagram is about can go up to 20 for labels and 18 for notes.
 
 **Whitespace carries importance.** The most important element gets 200px+ of clear space. Guide the eye left→right or top→bottom.
 
@@ -152,6 +153,61 @@ The editor code loads from esm.sh, but the diagram stays on the machine. This is
 2. Each element sits on one line of the file, so edit it by id with the Edit tool. Add new elements as skeletons.
 3. Run expand, then render and look, as in Step 6. The user's layout stays where they put it, because expand only fills missing fields.
 
+## Linking boxes to code
+
+When a diagram documents code, each box that stands for a function, type, service or file carries a `code` ref. Expand turns it into a clickable GitHub link, `diagram.py check` fails when the code moves out from under it, and the editor opens it in VS Code.
+
+```json
+{"type": "rectangle", "id": "invoice_gen", "x": 0, "y": 0, "width": 180, "height": 80, "label": "Invoice Generator", "code": "billing:src/invoice.ts#generateInvoice"}
+```
+
+The form is `repo:path#symbol`. The path is relative to the repo root, and the symbol is optional.
+
+1. **Find the checkouts.** For each repo the diagram covers, find its local checkout and read the code before you link it. Ask the user for any repo you can't find.
+2. **Write `diagram.repos.toml`** next to the diagram, or in a parent directory, and commit it with the diagram. It maps each repo id to GitHub. `git remote get-url origin` gives the repo, and `git symbolic-ref --short refs/remotes/origin/HEAD` gives the branch. Don't assume `main`. Keep repo ids short and lowercase, one per repo, and reuse an existing file's ids.
+
+    ```toml
+    [billing]
+    github = "acme/billing-api"
+    branch = "main"
+    ```
+
+3. **Map the checkouts** in `~/.config/diagram-links/local.toml`, which is per machine and never committed. Without it, check can't verify a ref, links have no line, and the editor can't open VS Code. Ask before writing it, because it's the user's machine config. If they decline, write the same content to your scratchpad and set `DIAGRAM_LOCAL_CONFIG` to that file for every `diagram.py` and `open_excalidraw.py` call.
+
+    ```toml
+    billing = "~/src/billing-api"
+    ```
+
+4. **Add the refs.** On a new element, put `code` in the skeleton. On an existing element, add `"code": "..."` to its line by id with the Edit tool. Expand moves it into `customData`. Pick the symbol a reader would open first: the constructor, handler, or exported function that does what the box says. Use its exact name from the file, never a name from memory.
+5. **Expand, then check.** Expand writes the GitHub links at the symbol's line on the linked branch, as of the last `git fetch`. Check names each box whose file or symbol is gone, for example `"Invoice Generator" points to generateInvoice, which is not defined in src/invoice.ts`. Fix every failure. Repos it lists as not checked have no entry in `local.toml`.
+
+Rules:
+
+- Link only code that exists. A box for planned work stays unlinked until the code lands. Say so in its label or a note.
+- An evidence block that names a source file doesn't replace a ref. Put the ref on the box the evidence describes.
+- Don't link arrows, sections or free text. Link the boxes.
+
+When you hand over a linked diagram, tell the user how to use the editor from Step 7:
+
+- **Cmd+click** (Ctrl+click off macOS) on a linked box opens its code in VS Code at the line, or on GitHub when the repo isn't in `local.toml`.
+- **Shift+Cmd+click** opens VS Code's diff of that file against where the branch split off.
+- Both open in the VS Code window that has the repo, so its language tooling works. Hovering a box shows what each one does.
+
+Both need the `code` command on PATH. In VS Code, run "Shell Command: Install 'code' command in PATH" once. The diff needs the repo in `local.toml` and a file that changed since the checkout split off `origin/<branch>`. Otherwise the hover hint leaves the diff out. Run `git fetch` first so the split point is current.
+
+When the user asks for one box's code or diff in the terminal, run the same commands the editor runs. Use the box's ref and the branch from `diagram.repos.toml`:
+
+```bash
+cd ~/src/billing-api                      # the checkout from local.toml
+code .                                    # focus the window that has the repo
+code --reuse-window --goto src/invoice.ts:42
+base=$(git merge-base origin/main HEAD)
+git show "$base:src/invoice.ts" > "$SCRATCH/invoice.ts" 2>/dev/null   # empty when the branch added the file
+code --reuse-window --diff "$SCRATCH/invoice.ts" src/invoice.ts      # left: split point, right: working file
+```
+
+For another editor, such as the VS Code extension, `uv run --script $D links path/to/file.excalidraw -o "$SCRATCH/walk.excalidraw"` writes a copy with `vscode://` links. The committed file keeps its GitHub links.
+
 ## Checklist
 
 - Real specs researched, evidence artifacts included (technical diagrams)
@@ -162,6 +218,7 @@ The editor code loads from esm.sh, but the diagram stays on the machine. This is
 - Each color has one meaning across the whole diagram, and an on-canvas legend covers all of them
 - `fontFamily: 5` for titles and labels, `6` for notes and lists, `3` for code
 - Built from skeletons and `diagram.py expand`, with no hand-written seeds or `boundElements`
+- Boxes that stand for code carry a `code` ref, and `diagram.py check` passes
 - Rendered to the scratchpad, viewed, and iterated on
 - Opened in the browser with `open_excalidraw.py`, no PNG handed over
 
@@ -169,5 +226,5 @@ The editor code loads from esm.sh, but the diagram stays on the machine. This is
 
 - `references/color-palette.md` - colors, fonts, background
 - `references/element-templates.md` - skeleton per element type
-- `references/diagram.py` - expand, read, check
+- `references/diagram.py` - expand, read, check, links
 - `references/json-schema.md` - Excalidraw format

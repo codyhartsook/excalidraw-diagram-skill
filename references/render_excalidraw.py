@@ -192,7 +192,7 @@ def render(
 
         page.wait_for_function("window.__renderComplete === true", timeout=15000)
 
-        # Screenshot the stage, which carries the background and the ambient glow
+        # Screenshot the stage, which carries the background and padding
         stage = page.query_selector("#stage")
         if stage is None:
             print("ERROR: No stage element found after render.", file=sys.stderr)

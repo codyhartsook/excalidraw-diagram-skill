@@ -1,6 +1,6 @@
 # Element Templates
 
-Skeletons for each element type. Write only these fields, then run `diagram.py expand`. It fills in everything else with the Step 4 styling: `roughness: 1`, Excalifont, black stroke, rounded rectangles. Pull colors from `color-palette.md` by semantic purpose. Any field you add, such as `strokeStyle` or `fontFamily`, overrides the default.
+Skeletons for each element type. Write only these fields, then run `diagram.py expand`. It fills in everything else with the Step 4 styling: `roughness: 1`, Excalifont, black stroke, white fill on shapes, rounded rectangles. Pull colors from `color-palette.md` by semantic purpose. Any field you add, such as `strokeStyle` or `fontFamily`, overrides the default.
 
 ## Free-floating text
 
@@ -8,18 +8,18 @@ Skeletons for each element type. Write only these fields, then run `diagram.py e
 {"type": "text", "id": "title", "x": 80, "y": 30, "text": "Tool call authorization", "fontSize": 36}
 ```
 
-Multi-line notes use `\n` and `"fontFamily": 6`. Code uses `"fontFamily": 3`.
+Multi-line notes use `\n`, `"fontFamily": 6` and `"strokeColor": "#495057"`. Code uses `"fontFamily": 3`.
 
 ## Shape with a label
 
 `label` becomes a bound text element named `<id>_label`, centred in the shape. Use a string, or an object to set the text's own fields.
 
 ```json
-{"type": "rectangle", "id": "gateway", "x": 340, "y": 150, "width": 180, "height": 100, "backgroundColor": "#c5f6fa", "label": "Gateway"}
-{"type": "diamond", "id": "policy", "x": 640, "y": 140, "width": 160, "height": 120, "strokeColor": "#e8590c", "backgroundColor": "#fff4e6", "label": {"text": "Allowed?", "fontSize": 13}}
+{"type": "rectangle", "id": "gateway", "x": 340, "y": 150, "width": 180, "height": 100, "label": "Gateway"}
+{"type": "diamond", "id": "policy", "x": 640, "y": 140, "width": 160, "height": 120, "strokeColor": "#e8590c", "label": {"text": "Allowed?", "fontSize": 13}}
 ```
 
-`ellipse` works the same way.
+`ellipse` works the same way. Add `"code": "repo:path#symbol"` to link a shape to the code it stands for. See "Linking boxes to code" in `SKILL.md`.
 
 ## Arrow
 
@@ -49,14 +49,14 @@ Trunks, timelines, dividers. The default is a hairline (`strokeWidth: 1`).
 A hairline rectangle with no fill, plus a free-floating label above its top-left corner.
 
 ```json
-{"type": "rectangle", "id": "section1", "x": 60, "y": 160, "width": 620, "height": 380, "strokeColor": "#adb5bd", "strokeWidth": 1}
+{"type": "rectangle", "id": "section1", "x": 60, "y": 160, "width": 620, "height": 380, "strokeColor": "#adb5bd", "strokeWidth": 1, "backgroundColor": "transparent"}
 ```
 
 ## Evidence artifact (code or JSON)
 
-A light block with left-aligned monospace text on top. Use one text element per color for syntax highlighting, and keep it to 6 lines or fewer.
+A light block with left-aligned monospace text on top, in `#1e1e1e` with comments in `#868e96`. Keep it to 6 lines or fewer.
 
 ```json
 {"type": "rectangle", "id": "code_bg", "x": 100, "y": 600, "width": 420, "height": 150, "strokeColor": "#ced4da", "backgroundColor": "#f8f9fa", "strokeWidth": 1}
-{"type": "text", "id": "code_keys", "x": 116, "y": 616, "text": "{\n  \"tool\": \"search\",\n  \"sub\": \"agent-7\"\n}", "fontFamily": 3, "fontSize": 13, "strokeColor": "#1971c2"}
+{"type": "text", "id": "code_keys", "x": 116, "y": 616, "text": "{\n  \"tool\": \"search\",\n  \"sub\": \"agent-7\"\n}", "fontFamily": 3, "fontSize": 13}
 ```

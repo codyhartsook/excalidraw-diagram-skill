@@ -1,78 +1,52 @@
-# Color Palette & Brand Style
+# Color Palette
 
-Single source of truth for colors. Light engineering whiteboard by default, for Kubernetes and agentic infrastructure. The values are Excalidraw's own palette, so the diagram matches what a person picks in the editor. A dark variant is at the end. Use it only when asked.
+The only source of color. The look is a technical design doc: light gray canvas, white boxes with black outlines, and a few saturated colors that each carry one meaning. The values are Excalidraw's own palette, so they match what a person picks in the editor.
 
-## Canvas
-
-| Property | Value |
-|----------|-------|
-| `viewBackgroundColor` | `#ffffff` |
-| `appState.ambientGlow` | `false` |
+Canvas: `viewBackgroundColor: "#f8f9fa"`.
 
 ## Text
 
-| Level | Color | Use for |
-|-------|-------|---------|
-| Title | `#1e1e1e` | Headings, box labels |
-| Body | `#495057` | Descriptions, arrow labels |
-| Muted | `#868e96` | Dates, sources, footnotes |
+| Color | Use for |
+|-------|---------|
+| `#1e1e1e` | Titles, box labels, code |
+| `#495057` | Notes, descriptions, arrow labels |
+| `#868e96` | Captions, legend text, code comments |
 
-Titles stay black. Status colors (below) are the only colored text.
+Meaning colors (below) are the only other text colors.
 
-## Status colors
+## Meaning colors
 
-These are the colors that carry meaning. Give each one exactly one meaning per diagram and name it in the legend.
+Each diagram decides what these mean and says so in its legend. The meanings here are the usual ones.
 
-| Status | Arrow and outline | Text | Typical meaning |
-|--------|-------------------|------|-----------------|
-| Risk, leak, deny | `#e03131` | `#e03131` | a problem in today's system |
-| Holds, allowed | `#2f9e44` | `#2f9e44` | something that is safe or works |
-| Proposed, open | `#f08c00` | `#e8590c` | new in this proposal, or undecided |
-| Neutral flow | `#1e1e1e` | | a hop that carries nothing special |
-| API or control call | `#868e96`, dashed, `strokeWidth: 1` | | a side call, not the main path |
+| Color | Arrows and lines | Text and outlines | Usual meaning |
+|-------|------------------|-------------------|---------------|
+| Green | `#2f9e44` | `#2f9e44` | The safe path, verified behavior |
+| Red | `#e03131` | `#e03131` | Risk, a leak, a denial |
+| Orange | `#f08c00` | `#e8590c` | Proposed, new, or still open |
+| Black | `#1e1e1e` | | A neutral hop, lifecycle order |
+| Gray, dashed, `strokeWidth: 1` | `#868e96` | | A side call, such as an API call |
+| Light gray, dotted, `strokeWidth: 1` | `#adb5bd` | | Points from evidence to what it describes |
+
+`strokeWidth: 4` marks the hops that carry what the diagram is about, such as the token in a token-flow diagram. Every other arrow is `2`.
 
 ## Shapes
 
-Black outline, light fill. The fill says who owns or runs the component. The outline stays black unless it carries a status.
-
-| Purpose | Stroke | Fill |
+| Element | Stroke | Fill |
 |---------|--------|------|
-| Control plane | `#1e1e1e` | `#d0ebff` |
-| Data plane, gateway, tunnel | `#1e1e1e` | `#c5f6fa` |
-| Agent or other untrusted code | `#1e1e1e` | `#e5dbff` |
-| Kubernetes resource, API service | `#326ce5` | `#ffffff` |
-| External, outside the cluster | `#1e1e1e` | `#f8f9fa` |
-| Risk source | `#e03131` | `#fff5f5` |
-| Open decision (diamond) | `#e8590c` | `#fff4e6` |
-| Changed by the proposal | `#e8590c` outline on the owner's fill | |
+| Component | `#1e1e1e` | `#ffffff` |
+| Proposed or changed component | `#e8590c` | `#ffffff` |
+| Planned for later | `#868e96`, label in `#868e96` | `#ffffff` |
+| Trust boundary, such as a sandbox | `#6741d9`, dashed | `transparent` |
+| Section, host or pod boundary | `#adb5bd`, `strokeWidth: 1` | `transparent` |
+| Span or state bar | `#868e96`, `strokeWidth: 1` | `#e9ecef` |
+| Step marker | `#1e1e1e`, number inside | `#ffffff` |
+| Timeline dot | `#1e1e1e` | `#1e1e1e` |
+| Code block | `#ced4da`, `strokeWidth: 1` | `#f8f9fa` |
 
-Trust boundary, such as a sandbox: `#6741d9`, `strokeStyle: "dashed"`, `transparent` fill. Inactive or planned: neutral stroke, dashed, `transparent` fill.
+## Code
 
-## Structure
-
-| Element | Value |
-|---------|-------|
-| Section | stroke `#adb5bd`, `transparent` fill, `strokeWidth: 1` |
-| Hairline, divider, sub-boundary | `#adb5bd`, `strokeWidth: 1` |
-| Connector from evidence to what it describes | `#adb5bd`, `strokeStyle: "dotted"` |
-| Step marker | white circle, `#1e1e1e` stroke, black number |
-| Timeline dot | `#1e1e1e`, or a status color for an event that matters |
+`fontFamily: 3`, 13px, left-aligned. Code is `#1e1e1e` and comments are `#868e96`. No syntax highlighting, because color carries meaning everywhere else.
 
 ## Legend
 
-Every diagram that uses status colors or more than one fill carries a legend near the title. Group it by encoding: "Arrows: what the hop carries", "Boxes: who runs it", then one line for text colors. Draw each swatch with the same stroke, width and style as in the diagram.
-
-## Evidence artifacts
-
-Code and data blocks: background `#f8f9fa`, stroke `#ced4da`, `fontFamily: 3`. Syntax colors carry no meaning. Say so in the legend when the diagram also uses status colors.
-
-| Token | Color |
-|-------|-------|
-| Keys, identifiers | `#1971c2` |
-| Strings, values | `#9c36b5` |
-| Numbers, booleans | `#2f9e44` |
-| Comments | `#868e96` |
-
-## Dark variant (only on request)
-
-Canvas `#0e1320`, and the renderer adds an ambient glow unless `ambientGlow: false`. Text `#f2f5fa`, body `#9aa5b8`, muted `#7b8798`. Shapes use a dark fill and a saturated stroke: control plane `#8b5cf6` on `#242047`, data plane `#3b82f6` on `#162747`, agent `#a78bfa` on `#2a2947`, Kubernetes `#38bdf8` on `#163247`, allow `#34d399` on `#153636`, warning `#fbbf24` on `#2a2820`, deny `#fb7185` on `#392432`, external `#94a3b8` on `#262d3b`. Sections and hairlines `#2a3344`. Code blocks `#0a0e15`. Use `roughness: 0` and `fontFamily: 2` in this variant. The one-meaning-per-color and legend rules still apply.
+Put the legend at the top right, beside the title. Group it by encoding: "Arrows: what the hop carries", then the box styles, then one line for text colors. Draw each swatch with the same stroke, width and style it has in the diagram.

@@ -8,12 +8,10 @@
   "version": 2,
   "source": "https://excalidraw.com",
   "elements": [],
-  "appState": { "viewBackgroundColor": "#ffffff", "gridSize": null, "ambientGlow": false },
+  "appState": { "viewBackgroundColor": "#f8f9fa", "gridSize": null },
   "files": {}
 }
 ```
-
-`appState.ambientGlow: false` turns off the renderer's background glow.
 
 ## Element types
 
